@@ -2,12 +2,20 @@ CXX=g++
 CXX_FLAGS=-g -std=c++11 -Wall
 CXX_LIBS=-lpthread
 
-OBJ=thread_pool.o
+OBJ=		thread_pool.o\
+		task.o
+OBJ_TEST=	run_tests.o\
+		test_thread_pool.o\
+		test_task.o
 
-BIN=thread_pool
+OBJ_ALL=${OBJ} ${OBJ_TEST}
+DEP= $(OBJ_ALL:.o=.d)
 
-thread_pool: thread_pool.o ${OBJ}
-	${CXX} ${CXX_FLAGS} ${CXX_LIBS} -o thread_pool ${OBJ}
+BIN_TEST=run_tests
+BIN=
+
+${BIN_TEST}: ${OBJ} ${OBJ_TEST}
+	${CXX} ${CXX_FLAGS} ${CXX_LIBS} -o ${BIN_TEST} ${OBJ} ${OBJ_TEST}
 
 .PONY: dep clean
 
@@ -22,7 +30,7 @@ clean:
 %.d: %.cpp
 	${CXX} -MM ${CXX_FLAGS} ${INCLUDE} $*.cpp > $*.d
 
--include $(OBJ:.o=.d)
+-include $(OBJ_ALL:.o=.d)
 
 %.o: %.cpp
 	${CXX} ${CXX_FLAGS} -c -o $@ $<

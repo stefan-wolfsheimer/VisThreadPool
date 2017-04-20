@@ -1,44 +1,26 @@
-#include <condition_variable>
-#include <mutex>
-#include <thread>
+#include "thread_pool.h"
+#include "task.h"
 #include <iostream>
-#include <list>
-#include <queue>
 #include <chrono>
-
-class ThreadPool
-{
-public:
-  ThreadPool(std::size_t n);
-  ~ThreadPool();
-  void addTask(int id);
-protected:
-  void runThread(std::size_t id);
-private:
-  std::list<std::thread> _threads;
-  std::queue<int> _produced_nums;
-  std::mutex _mutex;
-  std::condition_variable _condition;
-  bool _done;
-};
 
 ThreadPool::ThreadPool(std::size_t n)
 {
-  std::lock_guard<std::mutex> main_lock(_mutex);
+  std::lock_guard<mutex_type> main_lock(_mutex);
   _done = false;
+  _num_done = 0;
+  _num_failed = 0;
   for(std::size_t id = 0; id < n; id++) 
   {
     _threads.push_back(std::thread([this,id]() {
        this->runThread(id);
     }));
   }
-  std::cout << "threads created" << std::endl;
 }
 
 ThreadPool::~ThreadPool()
 {
   {
-    std::lock_guard<std::mutex> lock(_mutex);  
+    std::lock_guard<mutex_type> lock(_mutex);
     _done = true;
     _condition.notify_all();
   }
@@ -46,47 +28,83 @@ ThreadPool::~ThreadPool()
   {
     t.join();
   }
-  std::cout << "threads done" << std::endl;
+  if(_onDestroy) 
+  {
+    try
+    {
+      _onDestroy(this);
+    }
+    catch(...)
+    {
+    }
+  }
+}
+
+void ThreadPool::addTask(std::shared_ptr<Task> task)
+{
+  {
+    std::lock_guard<mutex_type> lock(_mutex);
+    if(_done)
+    {
+      throw std::logic_error("ThreadPool already terminated");
+    }
+    task->setState(Task::State::Ready);
+    _task_queue.push(task);
+    _condition.notify_all();
+  }
+}
+
+void ThreadPool::onDestroy(std::function<void(ThreadPool* pool)> cb)
+{
+  _onDestroy = cb;
+}
+
+std::size_t ThreadPool::size() const
+{
+  return _threads.size();
+}
+
+std::size_t ThreadPool::numTasks(Task::State s) const
+{
+  std::lock_guard<mutex_type> lock(_mutex);
+  switch(s)
+  {
+  case Task::State::Ready: return _task_queue.size();
+  case Task::State::Done: return _num_done;
+  case Task::State::Failed: return _num_failed;
+  default:
+    return 0u;
+  }
 }
 
 void ThreadPool::runThread(std::size_t id)
 {
-  std::unique_lock<std::mutex> lock(_mutex);
+  std::unique_lock<mutex_type> lock(_mutex);
   do 
   {
     if(!_done)
     {
       _condition.wait(lock);
     }
-    if(!_produced_nums.empty())
+    if(!_task_queue.empty())
     {
-      std::cout << "consuming " << _produced_nums.front() 
-                << " in thread " << id 
-                << " done:" << _done << std::endl;
-      _produced_nums.pop();
+      auto task = _task_queue.front();
+      _task_queue.pop();
+      task->_thread_id = id;
+      task->setState(Task::State::Running);
       lock.unlock();
-      std::this_thread::sleep_for(std::chrono::seconds(15 + id));
+      bool ret = task->run();
       lock.lock();
+      if(ret)
+      {
+        _num_done++;
+        task->setState(Task::State::Done);
+      }
+      else
+      {
+        _num_failed++;
+        task->setState(Task::State::Failed);
+      }
     }
-  } while (!_done || !_produced_nums.empty());
-}
-
-void ThreadPool::addTask(int i)
-{
-  {
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::cout << "producing " << i << '\n';
-    _produced_nums.push(i);
-    _condition.notify_all();
-  }
-}
-
-int main()
-{
-  ThreadPool pool(10);
-  for (int i = 0; i < 100; ++i) 
-  {
-    pool.addTask(i);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
+  } while (!_done || !_task_queue.empty());
 }
