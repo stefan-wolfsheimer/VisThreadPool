@@ -3,65 +3,103 @@
 #include <iostream>
 #include <chrono>
 
+std::shared_ptr<ThreadPool> ThreadPool::create(std::size_t n)
+{
+  return std::shared_ptr<ThreadPool>(new ThreadPool(n));
+}
+
+std::string ThreadPool::stateToString(State s)
+{
+  switch(s)
+  {
+  case State::Waiting: return "Waiting";
+  case State::Active: return "Active";
+  case State::Terminated: return "Terminated";
+  default: return "";
+  };
+}
+
 ThreadPool::ThreadPool(std::size_t n)
 {
   std::lock_guard<mutex_type> main_lock(_mutex);
-  _done = false;
+  _state = State::Waiting;
+  _size = n;
   _num_done = 0;
   _num_failed = 0;
-  for(std::size_t id = 0; id < n; id++) 
-  {
-    _threads.push_back(std::thread([this,id]() {
-       this->runThread(id);
-    }));
-  }
 }
 
 ThreadPool::~ThreadPool()
 {
+}
+
+void ThreadPool::activate()
+{
+  if(_state == State::Waiting)
+  {
+    auto self = shared_from_this();
+    {
+      std::unique_lock<mutex_type> lock(_mutex);
+      _state = State::Active;
+    }
+    for(std::size_t id = 0; id < _size; id++)
+    {
+      _threads.push_back(std::thread([self, id]() {
+            self->runThread(id);
+          }));
+    }
+  }
+  else
+  {
+    throw std::logic_error("Invalid Task transition " +
+                           ThreadPool::stateToString(_state) +
+                           " -> " +
+                           ThreadPool::stateToString(State::Active));
+  }
+}
+
+void ThreadPool::terminate()
+{
   {
     std::lock_guard<mutex_type> lock(_mutex);
-    _done = true;
+    if(_state != State::Active)
+    {
+      throw std::logic_error("Invalid Task transition " +
+                             ThreadPool::stateToString(_state) +
+                             " -> " +
+                             ThreadPool::stateToString(State::Terminated));
+    }
+    _state = State::Terminated;
     _condition.notify_all();
   }
   for(auto & t : _threads) 
   {
     t.join();
   }
-  if(_onDestroy) 
-  {
-    try
-    {
-      _onDestroy(this);
-    }
-    catch(...)
-    {
-    }
-  }
 }
 
 void ThreadPool::addTask(std::shared_ptr<Task> task)
 {
   {
-    std::lock_guard<mutex_type> lock(_mutex);
-    if(_done)
+    std::unique_lock<mutex_type> lock(_mutex);
+    if(_state == State::Terminated)
     {
       throw std::logic_error("ThreadPool already terminated");
     }
     task->setState(Task::State::Ready);
     _task_queue.push(task);
+    {
+      auto self = shared_from_this();
+      lock.unlock();
+      task->handleStateChange(self);
+      lock.lock();
+    }
     _condition.notify_all();
   }
 }
 
-void ThreadPool::onDestroy(std::function<void(ThreadPool* pool)> cb)
-{
-  _onDestroy = cb;
-}
-
 std::size_t ThreadPool::size() const
 {
-  return _threads.size();
+  return _size;
 }
 
 std::size_t ThreadPool::numTasks(Task::State s) const
@@ -77,12 +115,17 @@ std::size_t ThreadPool::numTasks(Task::State s) const
   }
 }
 
+ThreadPool::State ThreadPool::getState() const
+{
+  return _state;
+}
+
 void ThreadPool::runThread(std::size_t id)
 {
   std::unique_lock<mutex_type> lock(_mutex);
   do 
   {
-    if(!_done)
+    if(_state != State::Terminated)
     {
       _condition.wait(lock);
     }
@@ -92,19 +135,36 @@ void ThreadPool::runThread(std::size_t id)
       _task_queue.pop();
       task->_thread_id = id;
       task->setState(Task::State::Running);
-      lock.unlock();
+      {
+        auto self = shared_from_this();
+        lock.unlock();
+        task->handleStateChange(self);
+      }
       bool ret = task->run();
       lock.lock();
       if(ret)
       {
         _num_done++;
         task->setState(Task::State::Done);
+        {
+          auto self = shared_from_this();
+          lock.unlock();
+          task->handleStateChange(self);
+          lock.lock();
+        }
       }
       else
       {
         _num_failed++;
         task->setState(Task::State::Failed);
+        {
+          auto self = shared_from_this();
+          lock.unlock();
+          task->handleStateChange(self);
+          lock.lock();
+        }
       }
     }
-  } while (!_done || !_task_queue.empty());
+  } while (_state != State::Terminated ||
+           !_task_queue.empty());
 }

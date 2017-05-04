@@ -4,21 +4,39 @@
 
 const std::size_t Task::undefinedThreadId = std::size_t(-1);
 
-Task::Task(std::function<void()> func)
-  : _function([func](){
-      try
-      {
-        func();
-      }
-      catch(...)
-      {
-        return false;
-      }
-      return true;
-    }),
-    _thread_id(Task::undefinedThreadId),
-    _state(State::Waiting)
+std::shared_ptr<Task> Task::create(std::function<void()> func)
 {
+  return std::shared_ptr<Task>( new Task([func](){
+        try
+        {
+          func();
+        }
+        catch(...)
+        {
+          return false;
+        }
+        return true;
+      }));
+}
+
+std::shared_ptr<Task> Task::create(std::function<bool()> func)
+{
+  return std::shared_ptr<Task>( new Task(func) );
+}
+
+std::string Task::stateToString(State s)
+{
+  switch(s)
+  {
+  case State::Waiting: return "Waiting";
+  case State::Ready: return "Ready";
+  case State::Running: return "Running";
+  case State::CancelRequested: return "CancelRequested";
+  case State::Canceled: return "Canceled";
+  case State::Done: return "Done";
+  case State::Failed: return "Failed";
+  default: return "";
+  };
 }
 
 Task::Task(std::function<bool()> func)
@@ -42,19 +60,12 @@ Task::State Task::getState() const
   return _state;
 }
 
-std::string Task::stateToString(State s)
+void Task::onStateChange(Task::State s,
+                         std::function<void(std::shared_ptr<Task>,
+                                            std::shared_ptr<ThreadPool>)> func)
 {
-  switch(s)
-  {
-  case State::Waiting: return "Waiting";
-  case State::Ready: return "Ready";
-  case State::Running: return "Running";
-  case State::CancelRequested: return "CancelRequested";
-  case State::Canceled: return "Canceled";
-  case State::Done: return "Done";
-  case State::Failed: return "Failed";
-  default: return "";
-  };
+  unsigned int ints = (unsigned int)s;
+  stateChanges[ints].push_back(func);
 }
 
 bool Task::run()
@@ -69,6 +80,19 @@ bool Task::run()
     ret = false;
   }
   return ret;
+}
+
+void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
+{
+  auto itr = stateChanges.find((unsigned int)_state);
+  if(itr != stateChanges.end())
+  {
+    auto self = shared_from_this();
+    for(auto func : itr->second)
+    {
+      func(self, pool);
+    }
+  }
 }
 
 void Task::setState(Task::State s)
