@@ -26,26 +26,40 @@ ThreadPool::ThreadPool(std::size_t n)
   _size = n;
   _num_done = 0;
   _num_failed = 0;
+  _main_thread_id = std::this_thread::get_id();
 }
 
 ThreadPool::~ThreadPool()
 {
+  _condition.notify_all();
+  for(auto & t : _threads)
+  {
+    t.join();
+  }
+  _threads.clear();
 }
 
 void ThreadPool::activate()
 {
   if(_state == State::Waiting)
   {
-    auto self = shared_from_this();
+    if(_main_thread_id == std::this_thread::get_id())
     {
-      std::unique_lock<mutex_type> lock(_mutex);
-      _state = State::Active;
+      auto self = shared_from_this();
+      {
+        std::unique_lock<mutex_type> lock(_mutex);
+        _state = State::Active;
+      }
+      for(std::size_t id = 0; id < _size; id++)
+      {
+        _threads.push_back(std::thread([self, id]() {
+              self->runThread(id);
+            }));
+      }
     }
-    for(std::size_t id = 0; id < _size; id++)
+    else
     {
-      _threads.push_back(std::thread([self, id]() {
-            self->runThread(id);
-          }));
+      throw std::logic_error("Attempt to activate ThreadPool from thread ");
     }
   }
   else
@@ -60,7 +74,7 @@ void ThreadPool::activate()
 void ThreadPool::terminate()
 {
   {
-    std::lock_guard<mutex_type> lock(_mutex);
+    std::unique_lock<mutex_type> lock(_mutex);
     if(_state != State::Active)
     {
       throw std::logic_error("Invalid Task transition " +
@@ -68,12 +82,21 @@ void ThreadPool::terminate()
                              " -> " +
                              ThreadPool::stateToString(State::Terminated));
     }
-    _state = State::Terminated;
-    _condition.notify_all();
-  }
-  for(auto & t : _threads) 
-  {
-    t.join();
+    if(_main_thread_id != std::this_thread::get_id())
+    {
+      throw std::logic_error("Attempt to terminate ThreadPool from thread ");
+    }
+    else
+    {
+      _state = State::Terminated;
+      lock.unlock();
+      _condition.notify_all();
+      for(auto & t : _threads)
+      {
+        t.join();
+      }
+      _threads.clear();
+    }
   }
 }
 
@@ -125,7 +148,7 @@ void ThreadPool::runThread(std::size_t id)
   std::unique_lock<mutex_type> lock(_mutex);
   do 
   {
-    if(_state != State::Terminated)
+    if(_state != State::Terminated && _task_queue.empty())
     {
       _condition.wait(lock);
     }
@@ -151,6 +174,7 @@ void ThreadPool::runThread(std::size_t id)
           lock.unlock();
           task->handleStateChange(self);
           lock.lock();
+          task->_promise.set_value();
         }
       }
       else
@@ -162,6 +186,7 @@ void ThreadPool::runThread(std::size_t id)
           lock.unlock();
           task->handleStateChange(self);
           lock.lock();
+          task->_promise.set_value();
         }
       }
     }

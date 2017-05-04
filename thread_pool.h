@@ -37,6 +37,7 @@ private:
 
   typedef std::mutex mutex_type;
   mutable mutex_type _mutex;
+  std::thread::id _main_thread_id;
   std::list<std::thread> _threads;
   std::queue<std::shared_ptr<Task> > _task_queue;
   std::condition_variable _condition;

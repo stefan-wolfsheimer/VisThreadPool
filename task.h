@@ -6,6 +6,8 @@
 #include <string>
 #include <memory>
 
+#include <future>
+
 class ThreadPool;
 
 class Task : public std::enable_shared_from_this<Task>
@@ -39,6 +41,7 @@ public:
   void onStateChange(State s,
                      std::function<void(std::shared_ptr<Task>,
                                         std::shared_ptr<ThreadPool>)> func);
+  void wait();
 protected:
   void setState(State s);
   void handleStateChange(std::shared_ptr<ThreadPool> pool);
@@ -53,7 +56,8 @@ private:
   bool run();
   std::function<bool()> _function;
   std::unordered_map<unsigned int, stateChangeFunctionListType> stateChanges;
-
   std::size_t _thread_id;
   State _state;
+  std::promise<void> _promise;
+  std::future<void> _future;
 };

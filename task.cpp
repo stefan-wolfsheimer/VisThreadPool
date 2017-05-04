@@ -42,7 +42,8 @@ std::string Task::stateToString(State s)
 Task::Task(std::function<bool()> func)
   : _function(func),
     _thread_id(Task::undefinedThreadId),
-    _state(State::Waiting)
+    _state(State::Waiting),
+    _future(_promise.get_future())
 {
 }
 
@@ -68,6 +69,11 @@ void Task::onStateChange(Task::State s,
   stateChanges[ints].push_back(func);
 }
 
+void Task::wait()
+{
+  _future.wait();
+}
+
 bool Task::run()
 {
   bool ret = true;
@@ -82,6 +88,7 @@ bool Task::run()
   return ret;
 }
 
+#include <iostream>
 void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
 {
   auto itr = stateChanges.find((unsigned int)_state);

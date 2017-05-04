@@ -122,3 +122,61 @@ TEST_CASE( "ThreadPool_add_task_after_terminate_throws", "[ThreadPool]" )
   CHECK_THROWS_AS(pool->addTask(task), std::logic_error);
 }
 
+TEST_CASE( "ThreadPool_terminate_pool_on_done_throws", "[ThreadPool]" )
+{
+  auto pool = ThreadPool::create(1);
+  auto task = Task::create([](){});
+  task->onStateChange(Task::State::Done,
+                      [](std::shared_ptr<Task> t,
+                         std::shared_ptr<ThreadPool> pool)
+                      {
+                        CHECK_THROWS_AS(pool->terminate(), std::logic_error);
+                      });
+  pool->activate();
+  pool->addTask(task);
+  pool->terminate();
+}
+
+TEST_CASE( "ThreadPool_wait_for_task", "[ThreadPool]" )
+{
+  auto pool = ThreadPool::create(1);
+  auto task1 = Task::create([](){});
+  auto task2 = Task::create([](){});
+  auto task3 = Task::create([](){});
+  auto task4 = Task::create([](){});
+  pool->addTask(task1);
+  pool->addTask(task2);
+  pool->addTask(task3);
+  pool->addTask(task4);
+  pool->activate();
+  task1->wait();
+  task4->wait();
+  task2->wait();
+  task3->wait();
+  pool->terminate();
+}
+
+TEST_CASE( "ThreadPool_add_task_chain", "[ThreadPool]" )
+{
+  auto pool = ThreadPool::create(1);
+  int c = 100;
+  pool->activate();
+  std::shared_ptr<Task> last_task = Task::create([](){
+    });
+  std::shared_ptr<Task> first_task = last_task;
+  for(int i = 1; i < c; i++)
+  {
+    std::shared_ptr<Task> task = Task::create([](){});
+    last_task->onStateChange(Task::State::Done,
+                             [task](std::shared_ptr<Task> t,
+                                    std::shared_ptr<ThreadPool> pool)
+                             {
+                               pool->addTask(task);
+                             });
+    last_task = task;
+  }
+  pool->addTask(first_task);
+  last_task->wait();
+  pool->terminate();
+}
+
