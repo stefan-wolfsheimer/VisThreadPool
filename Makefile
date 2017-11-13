@@ -1,12 +1,12 @@
 CXX=g++
-CXX_FLAGS=-g -std=c++11 -Wall
-CXX_LIBS=-lpthread
+CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I.
+CXX_LIBS=-pthread
 
-OBJ=		thread_pool.o\
-		task.o
-OBJ_TEST=	run_tests.o\
-		test_thread_pool.o\
-		test_task.o
+OBJ=		src/thread_pool.o\
+		src/task.o
+OBJ_TEST=	test/run_tests.o\
+		test/test_thread_pool.o\
+		test/test_task.o
 
 OBJ_ALL=${OBJ} ${OBJ_TEST}
 DEP= $(OBJ_ALL:.o=.d)
