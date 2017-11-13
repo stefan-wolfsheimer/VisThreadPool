@@ -88,7 +88,6 @@ bool Task::run()
   return ret;
 }
 
-#include <iostream>
 void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
 {
   auto itr = stateChanges.find((unsigned int)_state);

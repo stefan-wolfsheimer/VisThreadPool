@@ -34,10 +34,6 @@ public:
 
   std::size_t getThreadId() const;
   State getState() const;
-
-
-
-  // Todo return event
   void onStateChange(State s,
                      std::function<void(std::shared_ptr<Task>,
                                         std::shared_ptr<ThreadPool>)> func);
@@ -47,15 +43,15 @@ protected:
   void handleStateChange(std::shared_ptr<ThreadPool> pool);
   Task(std::function<bool()> func);
 private:
-  typedef
-  std::function<void(std::shared_ptr<Task>,
-                     std::shared_ptr<ThreadPool>)> stateChangeFunctionType;
-  typedef
-  std::list<stateChangeFunctionType> stateChangeFunctionListType;
+  typedef std::shared_ptr<Task> shared_self_type;
+  typedef std::shared_ptr<ThreadPool> shared_pool_type;
+  typedef std::function<void(shared_self_type,
+			     shared_pool_type)> state_change_func_type;
+  typedef std::list<state_change_func_type> state_change_func_list_type;
 
   bool run();
   std::function<bool()> _function;
-  std::unordered_map<unsigned int, stateChangeFunctionListType> stateChanges;
+  std::unordered_map<unsigned int, state_change_func_list_type> stateChanges;
   std::size_t _thread_id;
   State _state;
   std::promise<void> _promise;
