@@ -35,6 +35,15 @@ TEST_CASE("ThreadPool_activate_after_terminate_throws", "[ThreadPool]")
   CHECK(pool.use_count() == 1u);
 }
 
+TEST_CASE("ThreadPool_adding_tasks_after_terminate_throws", "[ThreadPool]")
+{
+  auto pool = ThreadPool::create(0);
+  pool->activate();
+  pool->terminate();
+  CHECK_THROWS_AS(pool->activate(), std::logic_error);
+  CHECK(pool.use_count() == 1u);
+}
+
 
 TEST_CASE("ThreadPool_RunTasksInSingleThread", "[ThreadPool]")
 {
@@ -99,6 +108,8 @@ TEST_CASE("ThreadPool_RunTasks", "[ThreadPool]")
     REQUIRE( _counter.find(i) != _counter.end() );
     REQUIRE(_counter.find(i)->second == 1u );
   }
+
+  CHECK(pool.use_count() == 1u);
 }
 
 TEST_CASE( "ThreadPool_add_task_multiple_times_throws", "[ThreadPool]" )
@@ -111,6 +122,8 @@ TEST_CASE( "ThreadPool_add_task_multiple_times_throws", "[ThreadPool]" )
   CHECK(pool->numTasks(Task::State::Ready) == 1);
   CHECK_THROWS_AS(pool->addTask(task), std::logic_error);
   CHECK(pool->numTasks(Task::State::Ready) == 1);
+
+  CHECK(pool.use_count() == 1u);
 }
 
 TEST_CASE( "ThreadPool_add_task_after_terminate_throws", "[ThreadPool]" )
@@ -120,6 +133,8 @@ TEST_CASE( "ThreadPool_add_task_after_terminate_throws", "[ThreadPool]" )
   pool->activate();
   pool->terminate();
   CHECK_THROWS_AS(pool->addTask(task), std::logic_error);
+
+  CHECK(pool.use_count() == 1u);
 }
 
 TEST_CASE( "ThreadPool_terminate_pool_on_done_throws", "[ThreadPool]" )
@@ -135,6 +150,8 @@ TEST_CASE( "ThreadPool_terminate_pool_on_done_throws", "[ThreadPool]" )
   pool->activate();
   pool->addTask(task);
   pool->terminate();
+
+  CHECK(pool.use_count() == 1u);
 }
 
 TEST_CASE( "ThreadPool_wait_for_task", "[ThreadPool]" )
@@ -154,6 +171,8 @@ TEST_CASE( "ThreadPool_wait_for_task", "[ThreadPool]" )
   task2->wait();
   task3->wait();
   pool->terminate();
+
+  CHECK(pool.use_count() == 1u);
 }
 
 TEST_CASE( "ThreadPool_add_task_chain", "[ThreadPool]" )
@@ -180,3 +199,30 @@ TEST_CASE( "ThreadPool_add_task_chain", "[ThreadPool]" )
   pool->terminate();
 }
 
+TEST_CASE( "ThreadPool_state_changes_handled", "[ThreadPool]" )
+{
+  auto pool = ThreadPool::create(1);
+  auto task = Task::create([](){});
+  bool activated = false;
+  bool terminated = false;
+  pool->onStateChange(ThreadPool::State::Active,
+		      [&activated](std::shared_ptr<ThreadPool> pool){
+			CHECK(pool->getState() == ThreadPool::State::Active);
+			activated = true;
+		      });
+  pool->onStateChange(ThreadPool::State::Terminated,
+		      [&terminated](std::shared_ptr<ThreadPool> pool){
+			CHECK(pool->getState() == ThreadPool::State::Terminated);
+			terminated = true;
+		      });
+  CHECK_FALSE(activated);
+  CHECK_FALSE(terminated);
+  pool->activate();
+  CHECK(activated);
+  CHECK_FALSE(terminated);
+  pool->terminate();
+  CHECK(activated);
+  CHECK(terminated);
+
+  CHECK(pool.use_count() == 1u);
+}

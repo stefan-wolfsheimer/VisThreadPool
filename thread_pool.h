@@ -30,12 +30,21 @@ public:
   std::size_t numTasks(Task::State s) const;
   State getState() const;
 
+  void onStateChange(State s,
+                     std::function<void(std::shared_ptr<ThreadPool>)> func);
+
 protected:
   void runThread(std::size_t id);
+
 private:
   ThreadPool(std::size_t n);
+  void handleStateChange();
 
   typedef std::mutex mutex_type;
+  typedef std::shared_ptr<ThreadPool> shared_self_type;
+  typedef std::function<void(shared_self_type)> state_change_func_type;
+  typedef std::list<state_change_func_type> state_change_func_list_type;
+
   mutable mutex_type _mutex;
   std::thread::id _main_thread_id;
   std::list<std::thread> _threads;
@@ -45,4 +54,6 @@ private:
   std::size_t _size;
   std::size_t _num_done;
   std::size_t _num_failed;
+  std::unordered_map<unsigned int,
+		     state_change_func_list_type> stateChanges;
 };

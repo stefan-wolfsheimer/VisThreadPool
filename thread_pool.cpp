@@ -49,6 +49,7 @@ void ThreadPool::activate()
       {
         std::unique_lock<mutex_type> lock(_mutex);
         _state = State::Active;
+	handleStateChange();
       }
       for(std::size_t id = 0; id < _size; id++)
       {
@@ -89,6 +90,7 @@ void ThreadPool::terminate()
     else
     {
       _state = State::Terminated;
+      handleStateChange();
       lock.unlock();
       _condition.notify_all();
       for(auto & t : _threads)
@@ -192,4 +194,24 @@ void ThreadPool::runThread(std::size_t id)
     }
   } while (_state != State::Terminated ||
            !_task_queue.empty());
+}
+
+void ThreadPool::onStateChange(State s,
+			       std::function<void(std::shared_ptr<ThreadPool>)> func)
+{
+  unsigned int ints = (unsigned int)s;
+  stateChanges[ints].push_back(func);
+}
+
+void ThreadPool::handleStateChange()
+{
+  auto itr = stateChanges.find((unsigned int)_state);
+  if(itr != stateChanges.end())
+  {
+    auto self = shared_from_this();
+    for(auto func : itr->second)
+    {
+      func(self);
+    }
+  }
 }
