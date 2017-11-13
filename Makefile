@@ -1,5 +1,5 @@
 CXX=g++
-CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I.
+CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I3rdparty
 CXX_LIBS=-pthread
 
 OBJ=		src/thread_pool.o\
