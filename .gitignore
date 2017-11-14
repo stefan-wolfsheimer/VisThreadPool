@@ -29,6 +29,9 @@
 *.out
 *.app
 run_tests
+server
+
+# submodules
 
 # backup files
 *~
