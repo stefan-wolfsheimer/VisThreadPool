@@ -63,10 +63,10 @@ std::string Task::stateToString(State s)
 
 Task::Task(std::function<bool(std::shared_ptr<Task> task)> func)
   : function(func),
-    _threadId(Task::undefinedThreadId),
-    _taskId(Task::undefinedTaskId),
-    _state(State::Waiting),
-    _future(_promise.get_future())
+    threadId(Task::undefinedThreadId),
+    taskId(Task::undefinedTaskId),
+    state(State::Waiting),
+    future(promise.get_future())
 {
 }
 
@@ -76,17 +76,17 @@ Task::~Task()
 
 std::size_t Task::getThreadId() const
 {
-  return _threadId;
+  return threadId;
 }
 
 std::size_t Task::getTaskId() const
 {
-  return _taskId;
+  return taskId;
 }
 
 Task::State Task::getState() const 
 {
-  return _state;
+  return state;
 }
 
 void Task::onStateChange(Task::State s,
@@ -106,7 +106,7 @@ void Task::onStateChange(std::function<void(State s,
 
 void Task::wait()
 {
-  _future.wait();
+  future.wait();
 }
 
 bool Task::run()
@@ -126,7 +126,7 @@ bool Task::run()
 
 void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
 {
-  auto itr = stateChanges.find((unsigned int)_state);
+  auto itr = stateChanges.find((unsigned int)state);
   if(itr != stateChanges.end())
   {
     auto self = shared_from_this();
@@ -140,60 +140,60 @@ void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
     auto self = shared_from_this();
     for(auto func : genStateChanges)
     {
-      func(_state, self, pool);
+      func(state, self, pool);
     }
   }
 }
 
 void Task::setState(Task::State s)
 {
-  switch(_state)
+  switch(state)
   {
   case State::Waiting:
     if(s == State::Ready)
     {
-      _state = State::Ready;
+      state = State::Ready;
       return;
     }
     else if(s == State::Canceled)
     {
-      _state = State::Canceled;
+      state = State::Canceled;
       return;
     }
     break;
   case State::Ready:
     if(s == State::Running)
     {
-      _state = State::Running;
+      state = State::Running;
       return;
     }
     else if(s == State::Canceled)
     {
-      _state = State::Canceled;
+      state = State::Canceled;
       return;
     }
     break;
   case State::Running:
     if(s == State::Done) 
     {
-      _state = State::Done;
+      state = State::Done;
       return;
     }
     else if(s == State::Failed)
     {
-      _state = State::Failed;
+      state = State::Failed;
       return;
     }
     else if(s == State::CancelRequested)
     {
-      _state = State::CancelRequested;
+      state = State::CancelRequested;
       return;
     }
     break;
   case State::CancelRequested:
     if(s == State::Canceled)
     {
-      _state = State::Canceled;
+      state = State::Canceled;
       return;
     }
     break;
@@ -201,7 +201,7 @@ void Task::setState(Task::State s)
     break;
   }
   throw std::logic_error("Invalid Task transition " +
-                         Task::stateToString(_state) +
+                         Task::stateToString(state) +
                          " -> " +
                          Task::stateToString(s));
 }

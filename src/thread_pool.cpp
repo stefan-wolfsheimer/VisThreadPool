@@ -112,7 +112,7 @@ void ThreadPool::addTask(std::shared_ptr<Task> task)
     {
       throw std::logic_error("ThreadPool already terminated");
     }
-    task->_taskId = _taskCounter++;
+    task->taskId = _taskCounter++;
     task->setState(Task::State::Ready);
     _task_queue.push_back(task);
     {
@@ -171,7 +171,7 @@ void ThreadPool::runThread(std::size_t id)
     {
       auto task = _task_queue.front();
       _task_queue.pop_front();
-      task->_threadId = id;
+      task->threadId = id;
       tasksInThreads[id] = task;
       task->setState(Task::State::Running);
       {
@@ -190,7 +190,7 @@ void ThreadPool::runThread(std::size_t id)
           lock.unlock();
           task->handleStateChange(self);
           lock.lock();
-          task->_promise.set_value();
+          task->promise.set_value();
         }
       }
       else
@@ -202,7 +202,7 @@ void ThreadPool::runThread(std::size_t id)
           lock.unlock();
           task->handleStateChange(self);
           lock.lock();
-          task->_promise.set_value();
+          task->promise.set_value();
         }
       }
     }

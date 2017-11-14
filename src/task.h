@@ -63,9 +63,9 @@ private:
   std::function<bool(shared_self_type)> function;
   std::unordered_map<unsigned int, state_change_func_list_type> stateChanges;
   std::list<gen_state_change_func_type> genStateChanges;
-  std::size_t _threadId;
-  std::size_t _taskId;
-  State _state;
-  std::promise<void> _promise;
-  std::future<void> _future;
+  std::size_t threadId;
+  std::size_t taskId;
+  State state;
+  std::promise<void> promise;
+  std::future<void> future;
 };
