@@ -86,6 +86,24 @@ TEST_CASE("ThreadPool_RunTasksInSingleThread", "[ThreadPool]")
   CHECK(pool.use_count() == 1u);
 }
 
+TEST_CASE("ThreadPool_run_tasks_set_messages", "[ThreadPool]")
+{
+  auto task1 = Task::create([](std::shared_ptr<Task> t){ t->setMessage("task1"); });
+  auto task2 = Task::create([](std::shared_ptr<Task> t){ t->setMessage("task2"); });
+  auto task3 = Task::create([](std::shared_ptr<Task> t){ t->setMessage("task3"); });
+  auto pool = ThreadPool::create(2);
+  pool->activate();
+  pool->addTask(task1);
+  pool->addTask(task2);
+  pool->addTask(task3);
+  pool->terminate();
+  CHECK(task1->getMessage() == "task1");
+  CHECK(task2->getMessage() == "task2");
+  CHECK(task3->getMessage() == "task3");
+
+  CHECK(pool.use_count() == 1u);
+}
+
 TEST_CASE("ThreadPool_RunTasks", "[ThreadPool]")
 {
   std::unordered_map<std::size_t, std::size_t> _counter;

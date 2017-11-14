@@ -89,6 +89,17 @@ Task::State Task::getState() const
   return state;
 }
 
+std::string Task::getMessage() const
+{
+  return message;
+}
+
+void Task::setMessage(const std::string & msg)
+{
+  std::lock_guard<std::mutex> main_lock(taskMutex);
+  message = msg;
+}
+
 void Task::onStateChange(Task::State s,
                          std::function<void(std::shared_ptr<Task>,
                                             std::shared_ptr<ThreadPool>)> func)

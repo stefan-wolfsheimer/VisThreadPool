@@ -38,6 +38,8 @@ public:
   std::size_t getThreadId() const;
   std::size_t getTaskId() const;
   State getState() const;
+  std::string getMessage() const;
+  void setMessage(const std::string & msg);
   void onStateChange(State s,
                      std::function<void(std::shared_ptr<Task>,
                                         std::shared_ptr<ThreadPool>)> func);
@@ -60,6 +62,7 @@ private:
   typedef std::list<state_change_func_type> state_change_func_list_type;
 
   bool run();
+  std::mutex taskMutex;
   std::function<bool(shared_self_type)> function;
   std::unordered_map<unsigned int, state_change_func_list_type> stateChanges;
   std::list<gen_state_change_func_type> genStateChanges;
@@ -68,4 +71,5 @@ private:
   State state;
   std::promise<void> promise;
   std::future<void> future;
+  std::string message;
 };
