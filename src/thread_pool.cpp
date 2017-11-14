@@ -21,41 +21,41 @@ std::string ThreadPool::stateToString(State s)
 
 ThreadPool::ThreadPool(std::size_t n)
 {
-  std::lock_guard<mutex_type> main_lock(_mutex);
-  _state = State::Waiting;
-  _size = n;
-  _num_done = 0;
-  _num_failed = 0;
-  _taskCounter = 0;
-  _main_thread_id = std::this_thread::get_id();
+  std::lock_guard<mutex_type> main_lock(mutex);
+  state = State::Waiting;
+  threadPoolSize = n;
+  numDone = 0;
+  numFailed = 0;
+  taskCounter = 0;
+  mainThreadId = std::this_thread::get_id();
   tasksInThreads.resize(n);
 }
 
 ThreadPool::~ThreadPool()
 {
-  _condition.notify_all();
-  for(auto & t : _threads)
+  condition.notify_all();
+  for(auto & t : threads)
   {
     t.join();
   }
-  _threads.clear();
+  threads.clear();
 }
 
 void ThreadPool::activate()
 {
-  if(_state == State::Waiting)
+  if(state == State::Waiting)
   {
-    if(_main_thread_id == std::this_thread::get_id())
+    if(mainThreadId == std::this_thread::get_id())
     {
       auto self = shared_from_this();
       {
-        std::unique_lock<mutex_type> lock(_mutex);
-        _state = State::Active;
+        std::unique_lock<mutex_type> lock(mutex);
+        state = State::Active;
 	handleStateChange();
       }
-      for(std::size_t id = 0; id < _size; id++)
+      for(std::size_t id = 0; id < threadPoolSize; id++)
       {
-        _threads.push_back(std::thread([self, id]() {
+        threads.push_back(std::thread([self, id]() {
               self->runThread(id);
             }));
       }
@@ -68,7 +68,7 @@ void ThreadPool::activate()
   else
   {
     throw std::logic_error("Invalid Task transition " +
-                           ThreadPool::stateToString(_state) +
+                           ThreadPool::stateToString(state) +
                            " -> " +
                            ThreadPool::stateToString(State::Active));
   }
@@ -77,29 +77,29 @@ void ThreadPool::activate()
 void ThreadPool::terminate()
 {
   {
-    std::unique_lock<mutex_type> lock(_mutex);
-    if(_state != State::Active)
+    std::unique_lock<mutex_type> lock(mutex);
+    if(state != State::Active)
     {
       throw std::logic_error("Invalid Task transition " +
-                             ThreadPool::stateToString(_state) +
+                             ThreadPool::stateToString(state) +
                              " -> " +
                              ThreadPool::stateToString(State::Terminated));
     }
-    if(_main_thread_id != std::this_thread::get_id())
+    if(mainThreadId != std::this_thread::get_id())
     {
       throw std::logic_error("Attempt to terminate ThreadPool from thread ");
     }
     else
     {
-      _state = State::Terminated;
+      state = State::Terminated;
       handleStateChange();
       lock.unlock();
-      _condition.notify_all();
-      for(auto & t : _threads)
+      condition.notify_all();
+      for(auto & t : threads)
       {
         t.join();
       }
-      _threads.clear();
+      threads.clear();
     }
   }
 }
@@ -107,37 +107,37 @@ void ThreadPool::terminate()
 void ThreadPool::addTask(std::shared_ptr<Task> task)
 {
   {
-    std::unique_lock<mutex_type> lock(_mutex);
-    if(_state == State::Terminated)
+    std::unique_lock<mutex_type> lock(mutex);
+    if(state == State::Terminated)
     {
       throw std::logic_error("ThreadPool already terminated");
     }
-    task->taskId = _taskCounter++;
+    task->taskId = taskCounter++;
     task->setState(Task::State::Ready);
-    _task_queue.push_back(task);
+    taskQueue.push_back(task);
     {
       auto self = shared_from_this();
       lock.unlock();
       task->handleStateChange(self);
       lock.lock();
     }
-    _condition.notify_all();
+    condition.notify_all();
   }
 }
 
 std::size_t ThreadPool::size() const
 {
-  return _size;
+  return threadPoolSize;
 }
 
 std::size_t ThreadPool::numTasks(Task::State s) const
 {
-  std::lock_guard<mutex_type> lock(_mutex);
+  std::lock_guard<mutex_type> lock(mutex);
   switch(s)
   {
-  case Task::State::Ready: return _task_queue.size();
-  case Task::State::Done: return _num_done;
-  case Task::State::Failed: return _num_failed;
+  case Task::State::Ready: return taskQueue.size();
+  case Task::State::Done: return numDone;
+  case Task::State::Failed: return numFailed;
   default:
     return 0u;
   }
@@ -145,32 +145,32 @@ std::size_t ThreadPool::numTasks(Task::State s) const
 
 ThreadPool::State ThreadPool::getState() const
 {
-  return _state;
+  return state;
 }
 
 std::pair<std::vector<std::shared_ptr<Task> >,
 	  std::vector<std::shared_ptr<Task> > > ThreadPool::getTasks() const
 {
-  std::unique_lock<mutex_type> lock(_mutex);
-  std::vector<std::shared_ptr<Task> > q(_task_queue.begin(),
-					_task_queue.end());
+  std::unique_lock<mutex_type> lock(mutex);
+  std::vector<std::shared_ptr<Task> > q(taskQueue.begin(),
+					taskQueue.end());
   return std::make_pair(q, tasksInThreads);
 }
 
 
 void ThreadPool::runThread(std::size_t id)
 {
-  std::unique_lock<mutex_type> lock(_mutex);
+  std::unique_lock<mutex_type> lock(mutex);
   do 
   {
-    if(_state != State::Terminated && _task_queue.empty())
+    if(state != State::Terminated && taskQueue.empty())
     {
-      _condition.wait(lock);
+      condition.wait(lock);
     }
-    if(!_task_queue.empty())
+    if(!taskQueue.empty())
     {
-      auto task = _task_queue.front();
-      _task_queue.pop_front();
+      auto task = taskQueue.front();
+      taskQueue.pop_front();
       task->threadId = id;
       tasksInThreads[id] = task;
       task->setState(Task::State::Running);
@@ -183,7 +183,7 @@ void ThreadPool::runThread(std::size_t id)
       lock.lock();
       if(ret)
       {
-        _num_done++;
+        numDone++;
         task->setState(Task::State::Done);
         {
           auto self = shared_from_this();
@@ -195,7 +195,7 @@ void ThreadPool::runThread(std::size_t id)
       }
       else
       {
-        _num_failed++;
+        numFailed++;
         task->setState(Task::State::Failed);
         {
           auto self = shared_from_this();
@@ -206,8 +206,8 @@ void ThreadPool::runThread(std::size_t id)
         }
       }
     }
-  } while (_state != State::Terminated ||
-           !_task_queue.empty());
+  } while (state != State::Terminated ||
+           !taskQueue.empty());
 }
 
 void ThreadPool::onStateChange(State s,
@@ -219,7 +219,7 @@ void ThreadPool::onStateChange(State s,
 
 void ThreadPool::handleStateChange()
 {
-  auto itr = stateChanges.find((unsigned int)_state);
+  auto itr = stateChanges.find((unsigned int)state);
   if(itr != stateChanges.end())
   {
     auto self = shared_from_this();

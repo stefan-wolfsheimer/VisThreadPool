@@ -48,17 +48,17 @@ private:
   typedef std::function<void(shared_self_type)> state_change_func_type;
   typedef std::list<state_change_func_type> state_change_func_list_type;
 
-  mutable mutex_type _mutex;
-  std::thread::id _main_thread_id;
-  std::list<std::thread> _threads;
-  std::list<std::shared_ptr<Task> > _task_queue;
+  mutable mutex_type mutex;
+  std::thread::id mainThreadId;
+  std::list<std::thread> threads;
+  std::list<std::shared_ptr<Task> > taskQueue;
   std::vector<std::shared_ptr<Task> > tasksInThreads;
-  std::condition_variable _condition;
-  State _state;
-  std::size_t _size;
-  std::size_t _num_done;
-  std::size_t _num_failed;
-  std::size_t _taskCounter;
+  std::condition_variable condition;
+  State state;
+  std::size_t threadPoolSize;
+  std::size_t numDone;
+  std::size_t numFailed;
+  std::size_t taskCounter;
   std::unordered_map<unsigned int,
 		     state_change_func_list_type> stateChanges;
 };
