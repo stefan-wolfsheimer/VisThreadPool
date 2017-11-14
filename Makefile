@@ -8,11 +8,13 @@ CXX_LIBS=-pthread
 COBJ=           3rdparty/mongoose/mongoose.o
 OBJ=		src/thread_pool.o\
 		src/task.o\
-		src/server.o
+		src/server.o \
+		src/n_queens.o
 OBJ_BIN=	src/server_main.o
 OBJ_TEST=	test/run_tests.o\
 		test/test_thread_pool.o\
-		test/test_task.o
+		test/test_task.o\
+		test/test_n_queens.o
 
 OBJ_ALL=${OBJ} ${OBJ_TEST} ${OBJ_BIN}
 DEP= $(OBJ_ALL:.o=.d)
