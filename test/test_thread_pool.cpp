@@ -5,7 +5,7 @@
 #include <mutex>
 #include <exception>
 
-TEST_CASE("ThreadPool_Empty", "[ThreadPool]")
+TEST_CASE("ThreadPool_empty", "[ThreadPool]")
 {
   auto pool = ThreadPool::create(0);
   REQUIRE( pool->size() == 0u);
@@ -16,7 +16,7 @@ TEST_CASE("ThreadPool_Empty", "[ThreadPool]")
   CHECK(pool.use_count() == 1u);
 }
 
-TEST_CASE("ThreadPool_Size", "[ThreadPool]")
+TEST_CASE("ThreadPool_size", "[ThreadPool]")
 {
   auto pool = ThreadPool::create(4);
   REQUIRE( pool->size() == 4u);
@@ -49,7 +49,7 @@ TEST_CASE("ThreadPool_adding_tasks_after_terminate_throws", "[ThreadPool]")
 }
 
 
-TEST_CASE("ThreadPool_RunTasksInSingleThread", "[ThreadPool]")
+TEST_CASE("ThreadPool_run_tasks_in_single_thread", "[ThreadPool]")
 {
   auto task1 = Task::create([](){});
   auto task2 = Task::create([](){ throw std::exception(); });
@@ -104,7 +104,7 @@ TEST_CASE("ThreadPool_run_tasks_set_messages", "[ThreadPool]")
   CHECK(pool.use_count() == 1u);
 }
 
-TEST_CASE("ThreadPool_RunTasks", "[ThreadPool]")
+TEST_CASE("ThreadPool_run_tasks_in_multi_threads", "[ThreadPool]")
 {
   std::unordered_map<std::size_t, std::size_t> _counter;
   std::mutex _mutex;

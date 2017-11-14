@@ -84,7 +84,7 @@ private:
   }
 };
 
-TEST_CASE("Task_stateToString", "[Task]")
+TEST_CASE("Task_state_to_string", "[Task]")
 {
   REQUIRE(Task::stateToString(Task::State::Waiting) ==
           "Waiting");
@@ -124,7 +124,7 @@ TEST_CASE("Task_transitions", "[Task]")
   }
 }
 
-TEST_CASE("Task_onStateChange", "[Task]")
+TEST_CASE("Task_on_state_change", "[Task]")
 {
   auto task = TaskFixture::create(Task::State::Ready);
   std::vector<int> res;
