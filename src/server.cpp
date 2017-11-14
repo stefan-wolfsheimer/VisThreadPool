@@ -1,5 +1,7 @@
 #include <sstream>
 #include <chrono>
+#include <exception>
+
 #include "server.h"
 #include "thread_pool.h"
 #include "n_queens.h"
@@ -71,6 +73,10 @@ void HttpServer::run()
   mg_mgr_init(&mgr, NULL);
 
   nc = mg_bind(&mgr, s_http_port, ev_handler);
+  if(!nc)
+  {
+    throw std::runtime_error (std::string("could not bind port ") + s_http_port);
+  };
   mg_set_protocol_http_websocket(nc);
   s_http_server_opts.document_root = ".";  // Serve current directory
   s_http_server_opts.enable_directory_listing = "yes";
