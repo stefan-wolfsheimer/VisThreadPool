@@ -2,6 +2,7 @@
 #include <chrono>
 #include "server.h"
 #include "thread_pool.h"
+#include "n_queens.h"
 
 extern "C" {
 #include "mongoose/mongoose.h"
@@ -9,6 +10,7 @@ extern "C" {
 
 static sig_atomic_t s_signal_received = 0;
 static const char *s_http_port = "8000";
+static std::size_t maxSolutions = 10000;
 static struct mg_serve_http_opts s_http_server_opts;
 
 static void signal_handler(int sig_num)
@@ -102,9 +104,22 @@ void HttpServer::handleWebsocketFrame(const std::string & data)
 {
   if(pool)
   {
-    auto task = Task::create([](){
-        std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::size_t n;
+    
+    std::stringstream tmp(data);
+    tmp >> n;
+    auto task = Task::create([n](std::shared_ptr<Task> task){
+        ChessBoard board(n);
+        auto sol = board.solveNQueens(n, maxSolutions);
+        std::stringstream ss;
+        ss << "{";
+        ss << "\"numQueens\":" << n;
+        ss << ",\"numSolutions\":" << sol.getNumSolutions();
+        ss << ",\"fundamentalSolutions\":" << sol.getFundamentalSolutions();
+        ss << "}";
+        task->setMessage(ss.str());
       });
+    task->setMessage("{\"numQueens\":" + std::to_string(n) + "}");
     task->onStateChange([this](Task::State s,
                                std::shared_ptr<Task> task,
                                std::shared_ptr<ThreadPool> pool){
@@ -114,12 +129,14 @@ void HttpServer::handleWebsocketFrame(const std::string & data)
                              << Task::stateToString(s) << "\"";
                           if(task->getTaskId() != Task::undefinedTaskId)
                           {
-                            ss << ",taskId=" << task->getTaskId();
+                            ss << ",\"taskId\":" << task->getTaskId();
                           }
                           if(task->getThreadId() != Task::undefinedTaskId)
                           {
-                            ss << ",threadId=" << task->getThreadId();
+                            ss << ",\"threadId\":" << task->getThreadId();
                           }
+                          ss << ",\"numThreads\":" << pool->size();
+                          ss << ",\"result\":" << task->getMessage();
                           ss << "}";
                           std::string msg = ss.str();
                           for (c = mg_next(nc->mgr, NULL);

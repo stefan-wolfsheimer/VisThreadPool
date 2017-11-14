@@ -28,28 +28,17 @@
 </style>
 
 <script language="javascript" type="text/javascript">
-  var getJSON = function(url, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.responseType = 'json';
-    xhr.onload = function() {
-      var status = xhr.status;
-      if (status === 200) {
-        callback(null, xhr.response);
-      } else {
-        callback(status, xhr.response);
-      }
-    };
-    xhr.send();
-  };
-  var generateTable = function(err, data) {
-     if(err === null) {
-       var q = document.getElementById('queue');
-       if(q) {
-          q.innerHTML = '<p>' + data.queue.length + ' tasks queued</p>';
-       }
-       var innerHTML = '';
-       var state2color = {
+  var threads = null;
+  var queue = {};
+  var generateTable = function(threads, queue) {
+     var size = 0;
+     for (key in queue) {
+         if (queue.hasOwnProperty(key)) size++;
+     }
+     var q = document.getElementById('queue');
+     q.innerHTML = '<p>' + size  + ' tasks queued</p>';
+     var innerHTML = '';
+     var state2color = {
          'Waiting':         'grey',
          'Ready':           'grey',
          'Running':         'yellow',
@@ -57,22 +46,30 @@
          'Canceled':        'red',
          'Done':            'green',
          'Failed':          'red' 
-       };
-       var threadIndex = 0;
-       data.threads.forEach(function(elem) {
-         if(elem.state !== undefined) {
-           innerHTML+= '<tr><td>Thread ' + threadIndex + '</td>';
-           innerHTML+= '<td bgcolor="' + state2color[elem.state] + '"> TaskId: ' + elem.taskId + '</td>';
-           innerHTML+= '<td bgcolor="' + state2color[elem.state] + '">' + elem.state + '</td></tr>';
+     };
+     for (var k in threads) {
+       var elem = threads[k];
+       if(elem.state !== undefined) {
+         innerHTML+= '<tr><td>Thread ' + k + '</td>';
+         innerHTML+= '<td bgcolor="' + state2color[elem.state] + '"> TaskId: ' + elem.taskId + '</td>';
+         innerHTML+= '<td bgcolor="' + state2color[elem.state] + '">' + elem.state + '</td>';
+         if(elem.result.numQueens)
+         {
+           innerHTML+= '<td bgcolor="' + state2color[elem.state] + '">' + elem.result.numQueens + ' Queens</td>';
          }
-         else {
-           innerHTML+= '<tr><td>Thread ' + threadIndex + '</td>';
-           innerHTML+= '<td  bgcolor="grey">Ready</td></tr>';
+         if(elem.result.hasOwnProperty('numSolutions') && elem.result.hasOwnProperty('fundamentalSolutions'))
+         {
+           innerHTML+= '<td bgcolor="' + state2color[elem.state] + '">' + elem.result.numSolutions + ' solutions</td>';
+           innerHTML+= '<td bgcolor="' + state2color[elem.state] + '">' + elem.result.fundamentalSolutions + ' fundamental solutions</td>';
          }
-         threadIndex++;
-       });
-       document.getElementById('table').innerHTML = innerHTML;
-     }
+         innerHTML+= '</tr>';
+       }
+       else {
+         innerHTML+= '<tr><td>Thread ' + k + '</td>';
+         innerHTML+= '<td  bgcolor="grey">Ready</td></tr>';
+       }
+     };
+     document.getElementById('table').innerHTML = innerHTML;
   };
   var ws = new WebSocket('ws://' + location.host + '/ws');
 
@@ -88,21 +85,39 @@
     var messages = document.getElementById('messages');
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
-    getJSON('http://' + location.host + '/list', generateTable);
+    var obj = JSON.parse(ev.data);
+    if(threads == null)
+    {
+      threads = {};
+      for(var i =0; i < obj.numThreads; i++)
+      {
+        threads[i] = {};
+      }
+    }
+    if(obj.hasOwnProperty('threadId'))
+    {
+      delete queue[obj.taskId];
+      threads[obj.threadId] = obj;
+    }
+    else 
+    {
+       queue[obj.taskId] = obj;
+    }
+    
+    generateTable(threads, queue);
   };
 
   window.onload = function() {
     document.getElementById('send_button').onclick = function(ev) {
-      ws.send('');
+      ws.send('' + document.getElementById('number-queens').value);
     };
-    getJSON('http://' + location.host + '/list', generateTable);
   };
 </script>
 </head>
 <body>
   <div class="content">
     <h1>ThreadPool Demonstration</h1>
-    Queue: <div id="queue"></div>
+    <div id="queue"></div>
     <table id="table">
     </table>
 
@@ -110,6 +125,19 @@
     </div>
 
     <p>
+      <select id="number-queens">
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+      <option>4</option>
+      <option>5</option>
+      <option>6</option>
+      <option>7</option>
+      <option selected>8</option>
+      <option>9</option>
+      <option>10</option>
+      <option>11</option>
+      </select>
       <button id="send_button">Send Message</button>
     </p>
   </div>

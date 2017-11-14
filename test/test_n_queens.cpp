@@ -15,7 +15,7 @@ std::pair<std::size_t, std::size_t> getSolutions(const NQueensSolution & sol)
 TEST_CASE("NQueens_1", "[NQueens]")
 {
   ChessBoard board(1);
-  CHECK(getSolutions(board.solveNQueens(1, 10000)) == pair_type(0u, 1u));
+  CHECK(getSolutions(board.solveNQueens(1, 10000)) == pair_type(1u, 1u));
 }
 
 TEST_CASE("NQueens_2", "[NQueens]")

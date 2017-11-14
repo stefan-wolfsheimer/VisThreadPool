@@ -11,6 +11,10 @@ NQueensSolution::NQueensSolution()
 
 std::size_t NQueensSolution::getFundamentalSolutions() const
 {
+  if(nSolutions == 1u)
+  {
+    return 1u;
+  }
   std::size_t nf = 0;
   for(std::size_t i = 1; i < 9; i++) 
   {
