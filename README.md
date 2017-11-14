@@ -3,6 +3,12 @@
 VisThreadPool is an C++11 implementation of the [thread pool design pattern](https://en.wikipedia.org/wiki/Thread_pool).
 
 ## Features
+- The **Task** class encapsulate a lambda function to be executed
+- Tasks are added to an **ThreadPool**. The tasks are stored in a task queue and distributed on a fixed number of threads.
+- State changes such as starting of finishing a tasks can be tracked by registering call back lambda functions ([Observer pattern](https://en.wikipedia.org/wiki/Observer_pattern))
+- An example webserver application is included:
+A [complex calculation](https://en.wikipedia.org/wiki/Eight_queens_puzzle) is scheduled asynchronously and distributed.
+
 ![class diagram](https://github.com/stefan-wolfsheimer/VisThreadPool/raw/master/doc/classdiagram.png)
 ![sequence diagram](https://github.com/stefan-wolfsheimer/VisThreadPool/raw/master/doc/sequenceDiagram.png)
 
