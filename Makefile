@@ -1,5 +1,6 @@
 CC=gcc
 CFLAGS=-g -Wall
+DEPFLAGS= -MT $@ -MMD -MP -MF $*.td
 CXX=g++
 CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I3rdparty -I3rdparty/Catch2/single_include
 CXX_LIBS=-pthread
@@ -36,13 +37,14 @@ clean:
 	rm -f ${DEP}
 	rm -f ${OBJ_ALL}
 	rm -f ${BIN_TEST}
+	rm -f ${COBJ}
 
-
-%.d: %.cpp
-	${CXX} -MM ${CXX_FLAGS} ${INCLUDE} $*.cpp > $*.d
+%.o: %.cpp
+	${CXX} ${CXX_FLAGS} ${DEPFLAGS} -c -o $@ $<
+	mv $*.td $*.d 
+.d: ;
+.PRECIOUS: %.d
 
 -include $(OBJ_ALL:.o=.d)
 
-%.o: %.cpp
-	${CXX} ${CXX_FLAGS} -c -o $@ $<
 
