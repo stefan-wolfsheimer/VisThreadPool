@@ -46,7 +46,7 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
 
 HttpServer::HttpServer()
 {
-  #include "index.cpp"
+  #include "index.inc"
 }
 
 std::shared_ptr<HttpServer> HttpServer::instance()

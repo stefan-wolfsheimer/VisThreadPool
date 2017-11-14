@@ -45,6 +45,12 @@ clean:
 .d: ;
 .PRECIOUS: %.d
 
+src/server.o: src/server.cpp src/index.inc
+src/index.inc: src/index.html
+	( echo 'index = R"__HTML__(' && \
+	  cat src/index.html && \
+	  echo ')__HTML__";' ) > src/index.inc
+
 -include $(OBJ_ALL:.o=.d)
 
 

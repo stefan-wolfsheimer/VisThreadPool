@@ -30,6 +30,7 @@
 *.app
 run_tests
 server
+src/index.inc
 
 # submodules
 
