@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall
 CXX=g++
-CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I3rdparty
+CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I3rdparty -I3rdparty/Catch2/single_include
 CXX_LIBS=-pthread
 
 COBJ=           3rdparty/mongoose/mongoose.o
