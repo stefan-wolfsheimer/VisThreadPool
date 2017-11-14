@@ -99,8 +99,9 @@ TEST_CASE("ThreadPool_RunTasks", "[ThreadPool]")
   pool->activate();
   for(std::size_t i = 0; i < n; i++)
   {
-    pool->addTask(Task::create([i, &_mutex, &_counter]() {
+    pool->addTask(Task::create([i, &_mutex, &_counter](std::shared_ptr<Task> task) {
           std::lock_guard<std::mutex> lock(_mutex);
+          CHECK(task->getState() == Task::State::Running);
           _counter[i]++;
         }));
   }

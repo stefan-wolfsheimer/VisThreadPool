@@ -7,7 +7,7 @@ const std::size_t Task::undefinedTaskId = std::size_t(-1);
 
 std::shared_ptr<Task> Task::create(std::function<void()> func)
 {
-  return std::shared_ptr<Task>( new Task([func](){
+  return std::shared_ptr<Task>( new Task([func](std::shared_ptr<Task> t){
         try
         {
           func();
@@ -22,8 +22,29 @@ std::shared_ptr<Task> Task::create(std::function<void()> func)
 
 std::shared_ptr<Task> Task::create(std::function<bool()> func)
 {
+  return std::shared_ptr<Task>( new Task([func](std::shared_ptr<Task> task){ return func(); }));
+}
+
+std::shared_ptr<Task> Task::create(std::function<void(std::shared_ptr<Task>)> func)
+{
+  return std::shared_ptr<Task>( new Task([func](std::shared_ptr<Task> task){
+        try
+        {
+          func(task);
+        }
+        catch(...)
+        {
+          return false;
+        }
+        return true;
+      }));
+}
+
+std::shared_ptr<Task> Task::create(std::function<bool(std::shared_ptr<Task>)> func)
+{
   return std::shared_ptr<Task>( new Task(func) );
 }
+
 
 std::string Task::stateToString(State s)
 {
@@ -40,8 +61,8 @@ std::string Task::stateToString(State s)
   };
 }
 
-Task::Task(std::function<bool()> func)
-  : _function(func),
+Task::Task(std::function<bool(std::shared_ptr<Task> task)> func)
+  : function(func),
     _threadId(Task::undefinedThreadId),
     _taskId(Task::undefinedTaskId),
     _state(State::Waiting),
@@ -91,9 +112,10 @@ void Task::wait()
 bool Task::run()
 {
   bool ret = true;
+  auto self = shared_from_this();
   try
   {
-    ret = _function();
+    ret = function(self);
   }
   catch(...)
   {

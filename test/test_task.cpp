@@ -49,7 +49,7 @@ public:
 
 private:
   TaskFixture(Task::State s) 
-    : Task([](){ return true; })
+    : Task([](std::shared_ptr<Task> t){ return true; })
   {
     switch(s)
     {

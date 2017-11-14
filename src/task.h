@@ -31,6 +31,8 @@ public:
 
   static std::shared_ptr<Task> create(std::function<void()> func);
   static std::shared_ptr<Task> create(std::function<bool()> func);
+  static std::shared_ptr<Task> create(std::function<void(std::shared_ptr<Task>)> func);
+  static std::shared_ptr<Task> create(std::function<bool(std::shared_ptr<Task>)> func);
   static std::string stateToString(State s);
 
   std::size_t getThreadId() const;
@@ -46,7 +48,7 @@ public:
 protected:
   void setState(State s);
   void handleStateChange(std::shared_ptr<ThreadPool> pool);
-  Task(std::function<bool()> func);
+  Task(std::function<bool(std::shared_ptr<Task>)> func);
 private:
   typedef std::shared_ptr<Task> shared_self_type;
   typedef std::shared_ptr<ThreadPool> shared_pool_type;
@@ -58,7 +60,7 @@ private:
   typedef std::list<state_change_func_type> state_change_func_list_type;
 
   bool run();
-  std::function<bool()> _function;
+  std::function<bool(shared_self_type)> function;
   std::unordered_map<unsigned int, state_change_func_list_type> stateChanges;
   std::list<gen_state_change_func_type> genStateChanges;
   std::size_t _threadId;
