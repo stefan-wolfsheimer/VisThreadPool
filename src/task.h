@@ -26,6 +26,7 @@ public:
   };
 
   static const std::size_t undefinedThreadId;
+  static const std::size_t undefinedTaskId;
   virtual ~Task();
 
   static std::shared_ptr<Task> create(std::function<void()> func);
@@ -33,9 +34,13 @@ public:
   static std::string stateToString(State s);
 
   std::size_t getThreadId() const;
+  std::size_t getTaskId() const;
   State getState() const;
   void onStateChange(State s,
                      std::function<void(std::shared_ptr<Task>,
+                                        std::shared_ptr<ThreadPool>)> func);
+  void onStateChange(std::function<void(State s,
+					std::shared_ptr<Task>,
                                         std::shared_ptr<ThreadPool>)> func);
   void wait();
 protected:
@@ -47,12 +52,17 @@ private:
   typedef std::shared_ptr<ThreadPool> shared_pool_type;
   typedef std::function<void(shared_self_type,
 			     shared_pool_type)> state_change_func_type;
+  typedef std::function<void(State,
+			     shared_self_type,
+			     shared_pool_type)> gen_state_change_func_type;
   typedef std::list<state_change_func_type> state_change_func_list_type;
 
   bool run();
   std::function<bool()> _function;
   std::unordered_map<unsigned int, state_change_func_list_type> stateChanges;
-  std::size_t _thread_id;
+  std::list<gen_state_change_func_type> genStateChanges;
+  std::size_t _threadId;
+  std::size_t _taskId;
   State _state;
   std::promise<void> _promise;
   std::future<void> _future;

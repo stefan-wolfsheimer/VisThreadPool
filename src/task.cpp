@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 const std::size_t Task::undefinedThreadId = std::size_t(-1);
+const std::size_t Task::undefinedTaskId = std::size_t(-1);
 
 std::shared_ptr<Task> Task::create(std::function<void()> func)
 {
@@ -41,7 +42,8 @@ std::string Task::stateToString(State s)
 
 Task::Task(std::function<bool()> func)
   : _function(func),
-    _thread_id(Task::undefinedThreadId),
+    _threadId(Task::undefinedThreadId),
+    _taskId(Task::undefinedTaskId),
     _state(State::Waiting),
     _future(_promise.get_future())
 {
@@ -53,7 +55,12 @@ Task::~Task()
 
 std::size_t Task::getThreadId() const
 {
-  return _thread_id;
+  return _threadId;
+}
+
+std::size_t Task::getTaskId() const
+{
+  return _taskId;
 }
 
 Task::State Task::getState() const 
@@ -67,6 +74,13 @@ void Task::onStateChange(Task::State s,
 {
   unsigned int ints = (unsigned int)s;
   stateChanges[ints].push_back(func);
+}
+
+void Task::onStateChange(std::function<void(State s,
+					    std::shared_ptr<Task>,
+					    std::shared_ptr<ThreadPool>)> func)
+{
+  genStateChanges.push_back(func);
 }
 
 void Task::wait()
@@ -97,6 +111,14 @@ void Task::handleStateChange(std::shared_ptr<ThreadPool> pool)
     for(auto func : itr->second)
     {
       func(self, pool);
+    }
+  }
+  if(!genStateChanges.empty())
+  {
+    auto self = shared_from_this();
+    for(auto func : genStateChanges)
+    {
+      func(_state, self, pool);
     }
   }
 }

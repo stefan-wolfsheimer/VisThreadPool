@@ -1,0 +1,3 @@
+[submodule "3rdparty/mongoose"]
+	path = 3rdparty/mongoose
+	url = https://github.com/cesanta/mongoose

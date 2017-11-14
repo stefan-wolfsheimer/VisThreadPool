@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include <list>
+#include <vector>
 #include <queue>
 #include <memory>
 #include "task.h"
@@ -29,6 +30,8 @@ public:
   std::size_t size() const;
   std::size_t numTasks(Task::State s) const;
   State getState() const;
+  std::pair<std::vector<std::shared_ptr<Task> >,
+	    std::vector<std::shared_ptr<Task> > > getTasks() const;
 
   void onStateChange(State s,
                      std::function<void(std::shared_ptr<ThreadPool>)> func);
@@ -48,12 +51,14 @@ private:
   mutable mutex_type _mutex;
   std::thread::id _main_thread_id;
   std::list<std::thread> _threads;
-  std::queue<std::shared_ptr<Task> > _task_queue;
+  std::list<std::shared_ptr<Task> > _task_queue;
+  std::vector<std::shared_ptr<Task> > tasksInThreads;
   std::condition_variable _condition;
   State _state;
   std::size_t _size;
   std::size_t _num_done;
   std::size_t _num_failed;
+  std::size_t _taskCounter;
   std::unordered_map<unsigned int,
 		     state_change_func_list_type> stateChanges;
 };

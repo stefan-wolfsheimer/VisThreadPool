@@ -9,6 +9,10 @@ TEST_CASE("ThreadPool_Empty", "[ThreadPool]")
 {
   auto pool = ThreadPool::create(0);
   REQUIRE( pool->size() == 0u);
+  auto tasks = pool->getTasks();
+  REQUIRE(tasks.first.empty());
+  REQUIRE(tasks.second.empty());
+
   CHECK(pool.use_count() == 1u);
 }
 
@@ -63,6 +67,10 @@ TEST_CASE("ThreadPool_RunTasksInSingleThread", "[ThreadPool]")
   pool->addTask(task2);
   pool->addTask(task3);
   pool->terminate();
+  auto tasks = pool->getTasks();
+  CHECK(tasks.first.empty());
+  CHECK(tasks.second.size() == 1);
+
   CHECK(pool->numTasks(Task::State::Ready) == 0u);
   CHECK(pool->numTasks(Task::State::Running) == 0u);
   CHECK(pool->numTasks(Task::State::Done) == 2u);

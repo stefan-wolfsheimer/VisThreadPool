@@ -26,7 +26,9 @@ ThreadPool::ThreadPool(std::size_t n)
   _size = n;
   _num_done = 0;
   _num_failed = 0;
+  _taskCounter = 0;
   _main_thread_id = std::this_thread::get_id();
+  tasksInThreads.resize(n);
 }
 
 ThreadPool::~ThreadPool()
@@ -110,8 +112,9 @@ void ThreadPool::addTask(std::shared_ptr<Task> task)
     {
       throw std::logic_error("ThreadPool already terminated");
     }
+    task->_taskId = _taskCounter++;
     task->setState(Task::State::Ready);
-    _task_queue.push(task);
+    _task_queue.push_back(task);
     {
       auto self = shared_from_this();
       lock.unlock();
@@ -145,6 +148,16 @@ ThreadPool::State ThreadPool::getState() const
   return _state;
 }
 
+std::pair<std::vector<std::shared_ptr<Task> >,
+	  std::vector<std::shared_ptr<Task> > > ThreadPool::getTasks() const
+{
+  std::unique_lock<mutex_type> lock(_mutex);
+  std::vector<std::shared_ptr<Task> > q(_task_queue.begin(),
+					_task_queue.end());
+  return std::make_pair(q, tasksInThreads);
+}
+
+
 void ThreadPool::runThread(std::size_t id)
 {
   std::unique_lock<mutex_type> lock(_mutex);
@@ -157,8 +170,9 @@ void ThreadPool::runThread(std::size_t id)
     if(!_task_queue.empty())
     {
       auto task = _task_queue.front();
-      _task_queue.pop();
-      task->_thread_id = id;
+      _task_queue.pop_front();
+      task->_threadId = id;
+      tasksInThreads[id] = task;
       task->setState(Task::State::Running);
       {
         auto self = shared_from_this();
