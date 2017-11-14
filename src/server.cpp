@@ -106,6 +106,20 @@ HttpServer::handleRequest(const std::string & uri)
                         std::string());
 }
 
+void HttpServer::sendWebsocketFrame(const std::string & msg)
+{
+  struct mg_connection *c;
+  for (c = mg_next(nc->mgr, NULL);
+       c != NULL;
+       c = mg_next(nc->mgr, c))
+  {
+    mg_send_websocket_frame(c,
+                            WEBSOCKET_OP_TEXT,
+                            msg.c_str(),
+                            msg.size());
+  }
+}
+
 void HttpServer::handleWebsocketFrame(const std::string & data)
 {
   if(pool)
@@ -129,7 +143,6 @@ void HttpServer::handleWebsocketFrame(const std::string & data)
     task->onStateChange([this](Task::State s,
                                std::shared_ptr<Task> task,
                                std::shared_ptr<ThreadPool> pool){
-                          struct mg_connection *c;
                           std::stringstream ss;
                           ss << "{ \"state\": \""
                              << Task::stateToString(s) << "\"";
@@ -144,16 +157,7 @@ void HttpServer::handleWebsocketFrame(const std::string & data)
                           ss << ",\"numThreads\":" << pool->size();
                           ss << ",\"result\":" << task->getMessage();
                           ss << "}";
-                          std::string msg = ss.str();
-                          for (c = mg_next(nc->mgr, NULL);
-                               c != NULL;
-                               c = mg_next(nc->mgr, c))
-                          {
-                            mg_send_websocket_frame(c,
-                                                    WEBSOCKET_OP_TEXT,
-                                                    msg.c_str(),
-                                                    msg.size());
-                          }
+                          sendWebsocketFrame(ss.str());
                         });
     pool->addTask(task);
   }
