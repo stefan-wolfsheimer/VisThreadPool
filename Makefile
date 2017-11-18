@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall
+CFLAGS=-g -DMG_ENABLE_CALLBACK_USERDATA=1 -Wall
 DEPFLAGS= -MT $@ -MMD -MP -MF $*.td
 CXX=g++
 CXX_FLAGS=-g -std=c++11 -Wall -Isrc -I3rdparty -I3rdparty/Catch2/single_include

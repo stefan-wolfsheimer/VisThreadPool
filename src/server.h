@@ -12,7 +12,7 @@ struct mg_connection;
 class HttpServer
 {
 public:
-  static std::shared_ptr<HttpServer> instance();
+  HttpServer(const std::string & _port);
   void run();
   void setThreadPool(std::shared_ptr<ThreadPool> _pool);
   std::pair<std::string, std::string> handleRequest(const std::string & uri);
@@ -20,8 +20,8 @@ public:
   void sendWebsocketFrame(const std::string & msg);
   std::string getTasksJson() const;
 private:
-  HttpServer();
   std::string index;
   std::shared_ptr<ThreadPool> pool;
   struct mg_connection * nc;
+  std::string port;
 };
